@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fleet Campaign Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="bg-gray-50 font-['Inter']">
+    <div class="min-h-screen">
+        <nav class="bg-teal-600 text-white p-4">
+            <div class="container mx-auto flex justify-between items-center">
+                <h1 class="text-xl font-bold">Fleet Campaign Manager</h1>
+                <button onclick="openAddCampaign()" class="bg-white text-teal-600 px-4 py-2 rounded-lg hover:bg-teal-50">
+                    <i class="bi bi-plus-lg"></i> New Campaign
+                </button>
+            </div>
+        </nav>
+
+        <main class="container mx-auto p-4">
+            <!-- Dashboard Stats -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div class="bg-white p-4 rounded-lg shadow">
+                    <h3 class="text-gray-500">Active Campaigns</h3>
+                    <p class="text-2xl font-bold" id="activeCampaigns">0</p>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow">
+                    <h3 class="text-gray-500">Available Cars</h3>
+                    <p class="text-2xl font-bold" id="availableCars">0</p>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow">
+                    <h3 class="text-gray-500">Total Cars</h3>
+                    <p class="text-2xl font-bold" id="totalCars">0</p>
+                </div>
+            </div>
+
+            <!-- Campaigns Table -->
+            <div class="bg-white rounded-lg shadow overflow-hidden">
+                <div class="p-4 border-b">
+                    <h2 class="text-lg font-semibold">Active Campaigns</h2>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full" id="campaignTable">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-2 text-left">Campaign Name</th>
+                                <th class="px-4 py-2 text-left">Agency</th>
+                                <th class="px-4 py-2 text-left">Cars Assigned</th>
+                                <th class="px-4 py-2 text-left">Start Date</th>
+                                <th class="px-4 py-2 text-left">End Date</th>
+                                <th class="px-4 py-2 text-left">Status</th>
+                                <th class="px-4 py-2 text-left">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="campaignTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+
+        <!-- Add Campaign Modal -->
+        <div id="addCampaignModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center">
+            <div class="bg-white rounded-lg p-6 w-full max-w-md">
+                <h2 class="text-xl font-bold mb-4">Add New Campaign</h2>
+                <form id="campaignForm" onsubmit="handleSubmit(event)">
+                    <div class="mb-4">
+                        <label class="block mb-2">Campaign Name</label>
+                        <input type="text" required class="w-full border rounded p-2" id="campaignName">
+                    </div>
+                    <div class="mb-4">
+                        <label class="block mb-2">Agency</label>
+                        <input type="text" required class="w-full border rounded p-2" id="agency">
+                    </div>
+                    <div class="mb-4">
+                        <label class="block mb-2">Number of Cars</label>
+                        <input type="number" required min="1" class="w-full border rounded p-2" id="carsNeeded">
+                    </div>
+                    <div class="mb-4">
+                        <label class="block mb-2">Start Date</label>
+                        <input type="date" required class="w-full border rounded p-2" id="startDate">
+                    </div>
+                    <div class="mb-4">
+                        <label class="block mb-2">End Date</label>
+                        <input type="date" required class="w-full border rounded p-2" id="endDate">
+                    </div>
+                    <div class="flex justify-end gap-2">
+                        <button type="button" onclick="closeAddCampaign()" class="px-4 py-2 border rounded">Cancel</button>
+                        <button type="submit" class="px-4 py-2 bg-teal-600 text-white rounded">Save</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initial Data
+        let campaigns = [];
+        const totalCarsCount = 18500;
+        let availableCarsCount = totalCarsCount;
+
+        // Initialize the dashboard
+        function updateDashboard() {
+            document.getElementById('activeCampaigns').textContent = campaigns.filter(c => c.status === 'Active').length;
+            document.getElementById('availableCars').textContent = availableCarsCount;
+            document.getElementById('totalCars').textContent = totalCarsCount;
+        }
+
+        // Update campaigns table
+        function updateTable() {
+            const tbody = document.getElementById('campaignTableBody');
+            tbody.innerHTML = '';
+            
+            campaigns.forEach(campaign => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="px-4 py-2">${campaign.name}</td>
+                    <td class="px-4 py-2">${campaign.agency}</td>
+                    <td class="px-4 py-2">${campaign.carsAssigned}</td>
+                    <td class="px-4 py-2">${campaign.startDate}</td>
+                    <td class="px-4 py-2">${campaign.endDate}</td>
+                    <td class="px-4 py-2">
+                        <span class="px-2 py-1 rounded-full text-sm ${campaign.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}">
+                            ${campaign.status}
+                        </span>
+                    </td>
+                    <td class="px-4 py-2">
+                        <button onclick="endCampaign('${campaign.id}')" 
+                                class="text-red-600 hover:text-red-800"
+                                ${campaign.status === 'Completed' ? 'disabled' : ''}>
+                            <i class="bi bi-x-circle"></i> End
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // Modal Controls
+        function openAddCampaign() {
+            document.getElementById('addCampaignModal').classList.remove('hidden');
+        }
+
+        function closeAddCampaign() {
+            document.getElementById('addCampaignModal').classList.add('hidden');
+        }
+
+        // Handle form submission
+        function handleSubmit(event) {
+            event.preventDefault();
+            
+            const carsNeeded = parseInt(document.getElementById('carsNeeded').value);
+            if (carsNeeded > availableCarsCount) {
+                alert(`Only ${availableCarsCount} cars available!`);
+                return;
+            }
+
+            const campaign = {
+                id: Date.now().toString(),
+                name: document.getElementById('campaignName').value,
+                agency: document.getElementById('agency').value,
+                carsAssigned: carsNeeded,
+                startDate: document.getElementById('startDate').value,
+                endDate: document.getElementById('endDate').value,
+                status: 'Active'
+            };
+
+            campaigns.push(campaign);
+            availableCarsCount -= carsNeeded;
+
+            updateDashboard();
+            updateTable();
+            closeAddCampaign();
+            event.target.reset();
+        }
+
+        // End Campaign
+        function endCampaign(id) {
+            const campaign = campaigns.find(c => c.id === id);
+            if (campaign && campaign.status === 'Active') {
+                campaign.status = 'Completed';
+                availableCarsCount += campaign.carsAssigned;
+                updateDashboard();
+                updateTable();
+            }
+        }
+
+        // Auto check for completed campaigns
+        setInterval(() => {
+            const today = new Date();
+            campaigns.forEach(campaign => {
+                if (campaign.status === 'Active' && new Date(campaign.endDate) < today) {
+                    endCampaign(campaign.id);
+                }
+            });
+        }, 60000); // Check every minute
+
+        // Initial render
+        updateDashboard();
+        updateTable();
+    </script>
+<script>document.body.addEventListener('wheel', e => { if (!e.ctrlKey) return; e.preventDefault(); return }, { passive: false })</script>
+	</body>
+</html>
